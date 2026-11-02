@@ -154,7 +154,7 @@ export function NearbyBarbershops() {
           <div className="mt-7 flex items-start gap-3 rounded-2xl border border-white/[0.07] bg-black/20 p-4">
             <MapPin size={18} className="mt-0.5 shrink-0 text-[#c8f169]" />
             <p className="text-xs leading-5 text-neutral-400">
-              Ao clicar, o navegador solicitará sua autorização. As coordenadas serão usadas para esta busca e não serão salvas no seu cadastro.
+              Ao clicar, o navegador solicitará sua autorização. As coordenadas serão enviadas ao serviço OpenStreetMap/Overpass para realizar a busca e não serão salvas no seu cadastro.
             </p>
           </div>
         )}
