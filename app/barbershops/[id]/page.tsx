@@ -9,6 +9,8 @@ type BarbershopDetailsPageProps = {
   params: Promise<{ id: string }>;
 };
 
+export const instant = false;
+
 const currency = (value: number) =>
   new Intl.NumberFormat("pt-BR", {
     style: "currency",
