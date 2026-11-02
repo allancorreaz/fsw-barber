@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { ArrowLeft, ArrowRight, MapPin, Scissors, Search } from "lucide-react";
 import { db } from "@/app/_lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 type BarbershopsPageProps = {
   searchParams: Promise<{ search?: string }>;
@@ -18,7 +19,11 @@ export default async function BarbershopsPage({ searchParams }: BarbershopsPageP
   const { search = "" } = await searchParams;
   const term = search.trim();
 
-  let barbershops: Awaited<ReturnType<typeof db.barbershop.findMany>> = [];
+  type BarbershopWithServices = Prisma.BarbershopGetPayload<{
+    include: { services: { select: { price: true } } };
+  }>;
+
+  let barbershops: BarbershopWithServices[] = [];
   let loadError = false;
 
   try {
