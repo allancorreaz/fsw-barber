@@ -12,6 +12,65 @@ type BookingPayload = {
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const slotPattern = /^\d{4}-\d{2}-\d{2}T(?:0[9]|1[0-7]):(?:00|30)$/;
 
+
+const datePattern = /^\\d{4}-\\d{2}-\\d{2}$/;
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const serviceId = url.searchParams.get("serviceId") ?? "";
+  const date = url.searchParams.get("date") ?? "";
+
+  if (!serviceId || !datePattern.test(date)) {
+    return NextResponse.json({ error: "Informe um serviço e uma data válidos." }, { status: 400 });
+  }
+
+  const [year, month, day] = date.split("-").map(Number);
+  const calendarDate = new Date(Date.UTC(year, month - 1, day));
+  if (
+    calendarDate.getUTCFullYear() !== year ||
+    calendarDate.getUTCMonth() !== month - 1 ||
+    calendarDate.getUTCDate() !== day
+  ) {
+    return NextResponse.json({ error: "A data informada não existe." }, { status: 400 });
+  }
+
+  const start = new Date(`${date}T00:00:00.000-03:00`);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+
+  try {
+    const service = await db.barbershopService.findUnique({
+      where: { id: serviceId },
+      select: { barbershopId: true },
+    });
+
+    if (!service) {
+      return NextResponse.json({ error: "O serviço selecionado não está disponível." }, { status: 404 });
+    }
+
+    const bookings = await db.booking.findMany({
+      where: {
+        date: { gte: start, lt: end },
+        service: { barbershopId: service.barbershopId },
+      },
+      select: { date: true },
+    });
+
+    const formatter = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "America/Sao_Paulo",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
+
+    return NextResponse.json({
+      unavailableSlots: bookings.map((booking) => formatter.format(booking.date)),
+    });
+  } catch (error) {
+    console.error("Booking availability lookup failed:", error);
+    return NextResponse.json({ error: "Não foi possível consultar os horários." }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   let payload: BookingPayload;
 
