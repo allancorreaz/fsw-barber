@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FSW Barber
 
-## Getting Started
+Plataforma de descoberta e agendamento de serviços de barbearia, em evolução para um SaaS multiempresa.
 
-First, run the development server:
+## Visão do produto
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Consumidores:** encontram barbearias, consultam serviços e solicitam horários.
+- **Barbearias:** terão ambientes próprios para administrar equipe, catálogo, agenda, clientes e identidade visual.
+- **Plataforma:** administra os estabelecimentos clientes, os planos SaaS e a cobrança da assinatura da barbearia.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+A mensalidade SaaS da barbearia é diferente de um plano comercial que a própria barbearia possa oferecer aos seus consumidores. Os fluxos financeiros devem permanecer separados.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Next.js 16 e React 19
+- TypeScript
+- Tailwind CSS 4
+- Prisma ORM 5
+- PostgreSQL (Neon)
+- Vercel para hospedagem da aplicação
 
-## Learn More
+## Desenvolvimento
 
-To learn more about Next.js, take a look at the following resources:
+Requisitos: Node.js 22 ou superior e acesso a um PostgreSQL compatível.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Instale as dependências com `npm ci`.
+2. Configure `DATABASE_URL` (conexão pooled) e `DIRECT_URL` (conexão direta) conforme `.env.example`.
+3. Gere o Prisma Client com `npx prisma generate`.
+4. Inicie o ambiente com `npm run dev`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Não execute `prisma/seed.ts` contra o banco de produção. O seed contém dados demonstrativos.
 
-## Deploy on Vercel
+## Documentação
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- [Arquitetura SaaS, multi-tenancy e limites financeiros](docs/SAAS-ARCHITECTURE.md)
+- [ADR 0001 — Identidade, membros e isolamento por barbearia](docs/adr/0001-identity-membership-and-tenant-isolation.md)
+- [Configuração e publicação](docs/DEPLOYMENT.md)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Estado atual
+
+O fluxo público inicial contempla página institucional, catálogo de barbearias, detalhes dos serviços e solicitação de agendamento. Autenticação, painel de gestão, isolamento multi-tenant completo e cobrança recorrente ainda estão em implementação e não devem ser considerados disponíveis até serem concluídos e validados.
+
+## Qualidade
+
+A integração contínua executa instalação, geração do Prisma Client, lint e build. A cobertura de testes será ampliada junto com a implementação de autenticação, autorização, regras de agenda e pagamentos.
