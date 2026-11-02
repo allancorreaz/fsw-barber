@@ -42,7 +42,7 @@ export function BookingForm({ services }: BookingFormProps) {
     let active = true;
     setAvailabilityState("loading");
 
-    fetch(`/api/bookings/availability?serviceId=${encodeURIComponent(serviceId)}&date=${encodeURIComponent(date)}`)
+    fetch(`/api/bookings?serviceId=${encodeURIComponent(serviceId)}&date=${encodeURIComponent(date)}`)
       .then(async (response) => {
         const result = (await response.json()) as { unavailableSlots?: string[] };
         if (!response.ok) throw new Error("Availability lookup failed");
