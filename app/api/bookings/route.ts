@@ -13,7 +13,7 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const slotPattern = /^\d{4}-\d{2}-\d{2}T(?:0[9]|1[0-7]):(?:00|30)$/;
 
 
-const datePattern = /^\\d{4}-\\d{2}-\\d{2}$/;
+const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -91,6 +91,16 @@ export async function POST(request: Request) {
 
   if (!slotPattern.test(dateTime)) {
     return NextResponse.json({ error: "Selecione um horário válido entre 09h e 18h, em intervalos de 30 minutos." }, { status: 400 });
+  }
+
+  const [year, month, day] = dateTime.slice(0, 10).split("-").map(Number);
+  const calendarDate = new Date(Date.UTC(year, month - 1, day));
+  if (
+    calendarDate.getUTCFullYear() !== year ||
+    calendarDate.getUTCMonth() !== month - 1 ||
+    calendarDate.getUTCDate() !== day
+  ) {
+    return NextResponse.json({ error: "A data informada não existe." }, { status: 400 });
   }
 
   // The product currently operates with Brazil's UTC-3 local time.
