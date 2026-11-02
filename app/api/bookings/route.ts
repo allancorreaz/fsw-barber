@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/app/_lib/prisma";
 
-export const runtime = "nodejs";
-
 type BookingPayload = {
   serviceId?: unknown;
   dateTime?: unknown;
