@@ -108,7 +108,7 @@ export default async function BarbershopDetailsPage({ params }: BarbershopDetail
                 {barbershop.address}
               </p>
               {barbershop.phones.map((phone) => (
-                <a key={phone} href={`tel:${phone.replace(/[^+\\d]/g, "")}`} className="mt-3 flex items-center gap-3 text-sm text-neutral-400 transition hover:text-[#c8f169]">
+                <a key={phone} href={`tel:${phone.replace(/[^+\d]/g, "")}`} className="mt-3 flex items-center gap-3 text-sm text-neutral-400 transition hover:text-[#c8f169]">
                   <Phone size={16} className="text-[#c8f169]" /> {phone}
                 </a>
               ))}
@@ -123,7 +123,7 @@ export default async function BarbershopDetailsPage({ params }: BarbershopDetail
                 Entre em contato pelos telefones informados para consultar a disponibilidade.
               </p>
               {barbershop.phones[0] && (
-                <a href={`tel:${barbershop.phones[0].replace(/[^+\\d]/g, "")}`} className="accent-button mt-4 inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-bold">
+                <a href={`tel:${barbershop.phones[0].replace(/[^+\d]/g, "")}`} className="accent-button mt-4 inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-bold">
                   Entrar em contato
                 </a>
               )}
