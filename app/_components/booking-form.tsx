@@ -33,14 +33,9 @@ export function BookingForm({ services }: BookingFormProps) {
   const minimumDate = new Date().toLocaleDateString("en-CA");
 
   useEffect(() => {
-    if (!date || !serviceId) {
-      setUnavailableSlots([]);
-      setAvailabilityState("idle");
-      return;
-    }
+    if (!date || !serviceId) return;
 
     let active = true;
-    setAvailabilityState("loading");
 
     fetch(`/api/bookings?serviceId=${encodeURIComponent(serviceId)}&date=${encodeURIComponent(date)}`)
       .then(async (response) => {
@@ -96,6 +91,8 @@ export function BookingForm({ services }: BookingFormProps) {
       setEmail("");
       setDate("");
       setTime("");
+      setAvailabilityState("idle");
+      setUnavailableSlots([]);
     } catch {
       setError("Não foi possível conectar ao servidor. Tente novamente.");
     } finally {
@@ -117,7 +114,7 @@ export function BookingForm({ services }: BookingFormProps) {
         <span className="font-semibold text-neutral-200">Serviço</span>
         <select
           value={serviceId}
-          onChange={(event) => setServiceId(event.target.value)}
+          onChange={(event) => { setServiceId(event.target.value); setAvailabilityState("loading"); setUnavailableSlots([]); }}
           className="w-full rounded-xl border border-white/10 bg-[#171717] px-3 py-3 text-white outline-none focus:border-[#c8f169]"
           required
         >
@@ -136,7 +133,7 @@ export function BookingForm({ services }: BookingFormProps) {
             type="date"
             min={minimumDate}
             value={date}
-            onChange={(event) => { setDate(event.target.value); setTime(""); }}
+            onChange={(event) => { setDate(event.target.value); setTime(""); setAvailabilityState(event.target.value ? "loading" : "idle"); setUnavailableSlots([]); }}
             className="w-full min-w-0 rounded-xl border border-white/10 bg-[#171717] px-3 py-3 text-white outline-none focus:border-[#c8f169]"
             required
           />
