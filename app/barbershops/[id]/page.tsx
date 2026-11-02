@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { ArrowLeft, Clock3, MapPin, Phone, Scissors } from "lucide-react";
 import { db } from "@/app/_lib/prisma";
+import { BookingForm } from "@/app/_components/booking-form";
 
 type BarbershopDetailsPageProps = {
   params: Promise<{ id: string }>;
@@ -117,17 +118,25 @@ export default async function BarbershopDetailsPage({ params }: BarbershopDetail
                 Consulte diretamente a barbearia para confirmar horários e disponibilidade.
               </div>
             </div>
-            <div className="rounded-2xl border border-[#c8f169]/20 bg-[#c8f169]/[0.06] p-5">
-              <h3 className="font-bold">Quer marcar um horário?</h3>
-              <p className="mt-2 text-sm leading-6 text-neutral-400">
-                Entre em contato pelos telefones informados para consultar a disponibilidade.
+            <div id="agendar" className="surface scroll-mt-6 rounded-2xl p-5">
+              <p className="text-xs font-bold tracking-[0.18em] text-[#c8f169] uppercase">Reserve seu horário</p>
+              <h2 className="mt-2 text-xl font-black">Agende seu atendimento</h2>
+              <p className="mb-5 mt-2 text-sm leading-6 text-neutral-400">
+                Escolha o serviço, informe seus dados e selecione uma data e horário.
               </p>
-              {barbershop.phones[0] && (
-                <a href={`tel:${barbershop.phones[0].replace(/[^+\d]/g, "")}`} className="accent-button mt-4 inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-bold">
-                  Entrar em contato
-                </a>
-              )}
+              <BookingForm
+                services={barbershop.services.map((service) => ({
+                  id: service.id,
+                  name: service.name,
+                  price: Number(service.price),
+                }))}
+              />
             </div>
+            {barbershop.phones[0] && (
+              <a href={`tel:${barbershop.phones[0].replace(/[^+\\d]/g, "")}`} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-300 transition hover:border-[#c8f169]/40 hover:text-[#c8f169]">
+                <Phone size={16} /> Tirar dúvidas por telefone
+              </a>
+            )}
           </aside>
         </div>
       </section>
