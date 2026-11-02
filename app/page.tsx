@@ -207,7 +207,7 @@ export default function Home() {
         <div className="container-shell flex flex-col gap-4 text-xs text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
           <p className="font-bold tracking-tight text-neutral-300">barber<span className="accent-text">.</span></p>
           <p>Uma experiência mais simples para cuidar do seu estilo.</p>
-          <p>© {new Date().getFullYear()} Barber. Todos os direitos reservados.</p>
+          <p>© Barber. Todos os direitos reservados.</p>
         </div>
       </footer>
     </main>
