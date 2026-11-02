@@ -26,6 +26,7 @@ jobs:
         run: npx prisma generate
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/barber?schema=public
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/barber?schema=public
       - name: Lint
         run: npm run lint
       - name: Build
