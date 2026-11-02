@@ -62,9 +62,10 @@ export async function GET(request: Request) {
       hourCycle: "h23",
     });
 
-    return NextResponse.json({
-      unavailableSlots: bookings.map((booking) => formatter.format(booking.date)),
-    });
+    return NextResponse.json(
+      { unavailableSlots: bookings.map((booking) => formatter.format(booking.date)) },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     console.error("Booking availability lookup failed:", error);
     return NextResponse.json({ error: "Não foi possível consultar os horários." }, { status: 500 });
