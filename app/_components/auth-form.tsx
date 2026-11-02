@@ -1,11 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
  const router = useRouter();
  const [error, setError] = useState("");
  const [loading, setLoading] = useState(false);
- async function submit(event: React.FormEvent<HTMLFormElement>) {
+ async function submit(event: FormEvent<HTMLFormElement>) {
   event.preventDefault(); setError(""); setLoading(true);
   const form = new FormData(event.currentTarget);
   const payload = Object.fromEntries(form.entries());
