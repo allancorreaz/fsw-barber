@@ -116,8 +116,8 @@ export function NearbyBarbershops() {
   };
 
   return (
-    <section className="container-shell py-14 md:py-16" aria-labelledby="nearby-barbershops-title">
-      <div className="surface overflow-hidden rounded-[2rem] p-6 sm:p-8">
+    <section className="py-14 md:py-16" aria-labelledby="nearby-barbershops-title">
+      <div className="container-shell surface overflow-hidden rounded-[2rem] p-6 sm:p-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
             <p className="text-xs font-bold tracking-[0.2em] text-[#c8f169] uppercase">
@@ -262,6 +262,14 @@ export function NearbyBarbershops() {
                         className="inline-flex items-center gap-1.5 font-semibold text-[#c8f169] hover:underline"
                       >
                         <Navigation size={13} /> Como chegar
+                      </a>
+                      <a
+                        href={barbershop.osmUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-neutral-500 hover:text-neutral-300"
+                      >
+                        <ExternalLink size={13} /> Fonte do mapa
                       </a>
                     </div>
                   </article>
