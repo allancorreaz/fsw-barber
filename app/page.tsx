@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NearbyBarbershops } from "@/app/_components/nearby-barbershops";
 import {
   ArrowRight,
   CalendarDays,
@@ -159,6 +160,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <NearbyBarbershops />
 
       <section id="vantagens" className="border-y border-white/[0.07] bg-white/[0.015] py-16 md:py-20">
         <div className="container-shell">

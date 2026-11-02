@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NearbyBarbershops } from "@/app/_components/nearby-barbershops";
 import { connection } from "next/server";
 import { ArrowLeft, ArrowRight, MapPin, Scissors, Search } from "lucide-react";
 import { db } from "@/app/_lib/prisma";
@@ -86,9 +87,11 @@ export default async function BarbershopsPage({ searchParams }: BarbershopsPageP
           <button type="submit" className="accent-button rounded-xl px-5 py-3 text-sm font-bold">Buscar</button>
         </form>
 
+        <NearbyBarbershops />
+
         <div className="mt-10 flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold">{term ? `Resultados para “${term}”` : "Todas as barbearias"}</h2>
+            <h2 className="text-lg font-bold">{term ? `Resultados para “${term}”` : "Barbearias cadastradas na plataforma"}</h2>
             {!loadError && <p className="mt-1 text-sm text-neutral-500">{barbershops.length} {barbershops.length === 1 ? "barbearia encontrada" : "barbearias encontradas"}</p>}
           </div>
         </div>
