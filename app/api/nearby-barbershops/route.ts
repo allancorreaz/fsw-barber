@@ -1,7 +1,5 @@
 import { db } from "@/app/_lib/prisma";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 const RADIUS_METERS = 20_000;
 const CACHE_TTL_MS = 5 * 60 * 1000;
