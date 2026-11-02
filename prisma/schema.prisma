@@ -8,13 +8,78 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum MemberRole {
+  OWNER
+  MANAGER
+  RECEPTIONIST
+  BARBER
+}
+
+enum MemberStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+enum BookingStatus {
+  REQUESTED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
 model User {
-  id        String    @id @default(uuid())
-  name      String
-  email     String    @unique
-  bookings  Booking[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id            String             @id @default(uuid())
+  name          String
+  email         String             @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  bookings      Booking[]
+  memberships   BarbershopMember[]
+  accounts      Account[]
+  sessions      Session[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
 
 model Barbershop {
@@ -27,6 +92,81 @@ model Barbershop {
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
   services    BarbershopService[]
+  members     BarbershopMember[]
+  professionals Professional[]
+}
+
+model BarbershopMember {
+  id          String       @id @default(uuid())
+  userId      String
+  barbershopId String
+  role        MemberRole
+  status      MemberStatus @default(INVITED)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  barbershop  Barbershop   @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, barbershopId])
+  @@index([barbershopId, status, role])
+  @@index([userId, status])
+}
+
+model Professional {
+  id           String              @id @default(uuid())
+  barbershopId String
+  userId       String?
+  name         String
+  email        String?
+  phone        String?
+  imageUrl     String?
+  active       Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  barbershop   Barbershop          @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  services     ProfessionalService[]
+  workingHours ProfessionalWorkingHour[]
+  timeOff      ProfessionalTimeOff[]
+  bookings     Booking[]
+
+  @@index([barbershopId, active])
+  @@index([userId])
+}
+
+model ProfessionalService {
+  professionalId String
+  serviceId      String
+  professional   Professional      @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  service        BarbershopService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([professionalId, serviceId])
+  @@index([serviceId])
+}
+
+model ProfessionalWorkingHour {
+  id             String       @id @default(uuid())
+  professionalId String
+  weekDay        Int
+  startTime      String
+  endTime        String
+  active         Boolean      @default(true)
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([professionalId, weekDay, active])
+}
+
+model ProfessionalTimeOff {
+  id             String       @id @default(uuid())
+  professionalId String
+  startsAt       DateTime
+  endsAt         DateTime
+  reason         String?
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@index([professionalId, startsAt, endsAt])
 }
 
 model BarbershopService {
@@ -35,20 +175,35 @@ model BarbershopService {
   description  String
   imageUrl     String
   price        Decimal    @db.Decimal(10, 2)
+  durationMinutes Int     @default(30)
+  active       Boolean    @default(true)
   barbershopId String
   barbershop   Barbershop @relation(fields: [barbershopId], references: [id])
+  professionals ProfessionalService[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   bookings     Booking[]
 }
 
 model Booking {
-  id        String            @id @default(uuid())
-  userId    String
-  user      User              @relation(fields: [userId], references: [id])
-  serviceId String
-  service   BarbershopService @relation(fields: [serviceId], references: [id])
-  date      DateTime
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
+  id              String            @id @default(uuid())
+  userId          String
+  user            User              @relation(fields: [userId], references: [id])
+  serviceId       String
+  service         BarbershopService @relation(fields: [serviceId], references: [id])
+  professionalId  String?
+  professional    Professional?     @relation(fields: [professionalId], references: [id], onDelete: SetNull)
+  date            DateTime
+  status          BookingStatus     @default(REQUESTED)
+  priceAtBooking  Decimal?          @db.Decimal(10, 2)
+  durationMinutes Int?
+  customerNotes   String?
+  internalNotes   String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([date, status])
+  @@index([professionalId, date, status])
+  @@index([userId, date])
+  @@index([serviceId, date])
 }
