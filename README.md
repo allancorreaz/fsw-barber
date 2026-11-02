@@ -33,6 +33,7 @@ Não execute `prisma/seed.ts` contra o banco de produção. O seed contém dados
 ## Documentação
 
 - [Arquitetura SaaS, multi-tenancy e limites financeiros](docs/SAAS-ARCHITECTURE.md)
+- [ADR 0001 — Identidade, membros e isolamento por barbearia](docs/adr/0001-identity-membership-and-tenant-isolation.md)
 - [Configuração e publicação](docs/DEPLOYMENT.md)
 
 ## Estado atual
