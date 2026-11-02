@@ -115,7 +115,7 @@ export default async function BarbershopDetailsPage({ params }: BarbershopDetail
               ))}
               <div className="mt-5 flex items-center gap-2 border-t border-white/[0.07] pt-4 text-xs leading-5 text-neutral-500">
                 <Clock3 size={15} className="shrink-0" />
-                Consulte diretamente a barbearia para confirmar horários e disponibilidade.
+                A solicitação será registrada e a barbearia poderá confirmar o atendimento pelo contato informado.
               </div>
             </div>
             <div id="agendar" className="surface scroll-mt-6 rounded-2xl p-5">
@@ -133,7 +133,7 @@ export default async function BarbershopDetailsPage({ params }: BarbershopDetail
               />
             </div>
             {barbershop.phones[0] && (
-              <a href={`tel:${barbershop.phones[0].replace(/[^+\\d]/g, "")}`} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-300 transition hover:border-[#c8f169]/40 hover:text-[#c8f169]">
+              <a href={`tel:${barbershop.phones[0].replace(/[^+\d]/g, "")}`} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-300 transition hover:border-[#c8f169]/40 hover:text-[#c8f169]">
                 <Phone size={16} /> Tirar dúvidas por telefone
               </a>
             )}
