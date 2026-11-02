@@ -29,10 +29,31 @@ enum BookingStatus {
   CANCELLED
   NO_SHOW
 }
-enum SubscriptionStatus { PENDING ACTIVE PAST_DUE CANCELLED EXPIRED SUSPENDED }
-enum BillingCycle { MONTHLY QUARTERLY YEARLY }
-enum PaymentPurpose { SAAS_SUBSCRIPTION CONSUMER_PLAN SERVICE }
-enum PaymentStatus { PENDING CONFIRMED FAILED REFUNDED CANCELLED }
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+  SUSPENDED
+}
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+enum PaymentPurpose {
+  SAAS_SUBSCRIPTION
+  CONSUMER_PLAN
+  SERVICE
+}
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
 
 model User {
   id            String             @id @default(uuid())
