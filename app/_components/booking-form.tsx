@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { CalendarDays, CheckCircle2, LoaderCircle } from "lucide-react";
 
 type BookingService = {
@@ -27,8 +27,39 @@ export function BookingForm({ services }: BookingFormProps) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [unavailableSlots, setUnavailableSlots] = useState<string[]>([]);
+  const [availabilityState, setAvailabilityState] = useState<"idle" | "loading" | "ready" | "error">("idle");
 
   const minimumDate = new Date().toLocaleDateString("en-CA");
+
+  useEffect(() => {
+    if (!date || !serviceId) {
+      setUnavailableSlots([]);
+      setAvailabilityState("idle");
+      return;
+    }
+
+    let active = true;
+    setAvailabilityState("loading");
+
+    fetch(`/api/bookings/availability?serviceId=${encodeURIComponent(serviceId)}&date=${encodeURIComponent(date)}`)
+      .then(async (response) => {
+        const result = (await response.json()) as { unavailableSlots?: string[] };
+        if (!response.ok) throw new Error("Availability lookup failed");
+        if (active) {
+          setUnavailableSlots(result.unavailableSlots ?? []);
+          setAvailabilityState("ready");
+        }
+      })
+      .catch(() => {
+        if (active) setAvailabilityState("error");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [date, serviceId]);
+
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -105,7 +136,7 @@ export function BookingForm({ services }: BookingFormProps) {
             type="date"
             min={minimumDate}
             value={date}
-            onChange={(event) => setDate(event.target.value)}
+            onChange={(event) => { setDate(event.target.value); setTime(""); }}
             className="w-full min-w-0 rounded-xl border border-white/10 bg-[#171717] px-3 py-3 text-white outline-none focus:border-[#c8f169]"
             required
           />
@@ -120,11 +151,16 @@ export function BookingForm({ services }: BookingFormProps) {
           >
             <option value="">Selecione</option>
             {timeSlots.map((slot) => (
-              <option key={slot} value={slot}>{slot}</option>
+              <option key={slot} value={slot} disabled={unavailableSlots.includes(slot)}>
+                {slot}{unavailableSlots.includes(slot) ? " — indisponível" : ""}
+              </option>
             ))}
           </select>
         </label>
       </div>
+
+      {date && availabilityState === "loading" && <p className="text-xs text-neutral-400">Consultando horários disponíveis...</p>}
+      {date && availabilityState === "error" && <p role="alert" className="text-xs text-red-200">Não foi possível consultar a disponibilidade. Tente selecionar a data novamente.</p>}
 
       <label className="block space-y-2 text-sm">
         <span className="font-semibold text-neutral-200">Seu nome</span>
@@ -162,7 +198,7 @@ export function BookingForm({ services }: BookingFormProps) {
 
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || availabilityState === "loading" || availabilityState === "error"}
         className="accent-button flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60"
       >
         {submitting ? <LoaderCircle size={17} className="animate-spin" /> : <CalendarDays size={17} />}
