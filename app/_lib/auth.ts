@@ -25,7 +25,7 @@ export async function verifyPassword(password: string, encoded: string) {
 export async function createUserSession(userId: string) {
   const token = randomBytes(32).toString("base64url");
   const expires = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
-  await db.session.create({ data: { userId, sessionToken: token, expires } });
+  await db.session.create({ data: { userId, sessionToken: hashSessionToken(token), expires } });
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -42,7 +42,7 @@ export async function getCurrentUser() {
   if (!token) return null;
 
   const session = await db.session.findUnique({
-    where: { sessionToken: token },
+    where: { sessionToken: hashSessionToken(token) },
     include: {
       user: {
         select: {
@@ -61,7 +61,7 @@ export async function getCurrentUser() {
 
   if (!session) return null;
   if (session.expires <= new Date()) {
-    await db.session.delete({ where: { sessionToken: token } }).catch(() => undefined);
+    await db.session.delete({ where: { sessionToken: hashSessionToken(token) } }).catch(() => undefined);
     return null;
   }
   return session.user;
@@ -70,7 +70,7 @@ export async function getCurrentUser() {
 export async function destroyUserSession() {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
-  if (token) await db.session.deleteMany({ where: { sessionToken: token } });
+  if (token) await db.session.deleteMany({ where: { sessionToken: hashSessionToken(token) } });
   jar.delete(SESSION_COOKIE);
 }
 
