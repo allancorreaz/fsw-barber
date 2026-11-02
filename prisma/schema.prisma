@@ -198,7 +198,6 @@ model BarbershopService {
   updatedAt    DateTime   @updatedAt
   bookings     Booking[]
   planServices ConsumerPlanService[]
-  payments BillingPayment[]
 }
 
 model Booking {
@@ -215,6 +214,7 @@ model Booking {
   durationMinutes Int?
   customerNotes   String?
   internalNotes   String?
+  payments        BillingPayment[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
