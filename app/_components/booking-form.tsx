@@ -79,7 +79,7 @@ export function BookingForm({ services }: BookingFormProps) {
 
       <label className="block space-y-2 text-sm">
         <span className="font-semibold text-neutral-200">Data</span>
-        <input type="date" min={minimumDate} value={date} onChange={(event) => setDate(event.target.value)} className="w-full rounded-xl border border-white/10 bg-[#171717] px-3 py-3 text-white outline-none focus:border-[#c8f169]" required />
+        <input type="date" min={minimumDate} value={date} onChange={(event) => { setDate(event.target.value); setProfessionalId(""); setTime(""); setProfessionals([]); setAvailabilityState(event.target.value ? "loading" : "idle"); }} className="w-full rounded-xl border border-white/10 bg-[#171717] px-3 py-3 text-white outline-none focus:border-[#c8f169]" required />
       </label>
 
       {date && availabilityState === "loading" && <p className="text-xs text-neutral-400">Consultando a agenda da equipe...</p>}
