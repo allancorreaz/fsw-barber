@@ -171,7 +171,11 @@ export async function POST(request: Request) {
         TIME_OFF: [409, "O profissional não está disponível nesse período."],
         SLOT_TAKEN: [409, "Esse horário já foi ocupado. Escolha outro."],
       };
-      const [status, message] = errors[booking.error];
+      const errorCode = booking.error;
+      if (!errorCode || !Object.hasOwn(errors, errorCode)) {
+        return NextResponse.json({ error: "Não foi possível validar a disponibilidade do agendamento." }, { status: 500 });
+      }
+      const [status, message] = errors[errorCode];
       return NextResponse.json({ error: message }, { status });
     }
     return NextResponse.json({ message: "Agendamento solicitado! A barbearia poderá confirmar pelo contato informado.", bookingId: booking.booking.id }, { status: 201 });
