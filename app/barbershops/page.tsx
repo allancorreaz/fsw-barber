@@ -135,7 +135,7 @@ export default async function BarbershopsPage({ searchParams }: BarbershopsPageP
                       {user ? <Link href={`/barbershops/${barbershop.id}`} className="inline-flex items-center gap-1 text-xs font-bold text-[#c8f169]">Ver detalhes <ArrowRight size={14} /></Link> : <Link href={`/login?next=${encodeURIComponent(`/barbershops/${barbershop.id}`)}`} className="inline-flex items-center gap-1 text-xs font-bold text-[#c8f169]">Entre para ver detalhes <ArrowRight size={14} /></Link>}
                     </div>
                   </div>
-                </Link>
+                </article>
               );
             })}
           </div>
