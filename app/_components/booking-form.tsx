@@ -24,18 +24,8 @@ export function BookingForm({ services }: BookingFormProps) {
   const availableSlots = useMemo(() => selectedProfessional?.availableSlots ?? [], [selectedProfessional]);
 
   useEffect(() => {
-    if (!date || !serviceId) {
-      setProfessionals([]);
-      setProfessionalId("");
-      setTime("");
-      setAvailabilityState("idle");
-      return;
-    }
+    if (!date || !serviceId) return;
     let active = true;
-    setAvailabilityState("loading");
-    setProfessionals([]);
-    setProfessionalId("");
-    setTime("");
     fetch(`/api/bookings?serviceId=${encodeURIComponent(serviceId)}&date=${encodeURIComponent(date)}`, { cache: "no-store" })
       .then(async (response) => {
         const result = await response.json() as { professionals?: ProfessionalAvailability[]; error?: string };
