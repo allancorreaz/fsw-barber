@@ -23,6 +23,7 @@ export default async function BarbershopDetailsPage({ params }: BarbershopDetail
     where: { id },
     include: {
       services: {
+        where: { active: true },
         orderBy: { name: "asc" },
       },
     },
