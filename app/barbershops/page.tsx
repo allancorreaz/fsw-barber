@@ -3,7 +3,8 @@ import { NearbyBarbershops } from "@/app/_components/nearby-barbershops";
 import { connection } from "next/server";
 import { ArrowLeft, ArrowRight, MapPin, Scissors, Search } from "lucide-react";
 import { db } from "@/app/_lib/prisma";
-import type { Prisma } from "@prisma/client";\nimport { getCurrentUser } from "@/app/_lib/auth";
+import type { Prisma } from "@prisma/client";
+import { getCurrentUser } from "@/app/_lib/auth";
 
 type BarbershopsPageProps = {
   searchParams: Promise<{ search?: string }>;
@@ -18,7 +19,8 @@ const currency = (value: number) =>
 export default async function BarbershopsPage({ searchParams }: BarbershopsPageProps) {
   await connection();
   const { search = "" } = await searchParams;
-  const term = search.trim();\n  const user = await getCurrentUser();
+  const term = search.trim();
+  const user = await getCurrentUser();
 
   type BarbershopWithServices = Prisma.BarbershopGetPayload<{
     include: { services: { select: { price: true } } };
