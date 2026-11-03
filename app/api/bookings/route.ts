@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/app/_lib/prisma";
+import { getCurrentUser } from "@/app/_lib/auth";
 
-type BookingPayload = { serviceId?: unknown; professionalId?: unknown; dateTime?: unknown; name?: unknown; email?: unknown; };
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+type BookingPayload = { serviceId?: unknown; professionalId?: unknown; dateTime?: unknown };
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const dateTimePattern = /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d$/;
 const TZ = "America/Sao_Paulo";
@@ -32,6 +32,8 @@ function overlaps(start: Date, end: Date, otherStart: Date, otherEnd: Date) {
 }
 
 export async function GET(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Entre na sua conta para consultar os horários." }, { status: 401 });
   const url = new URL(request.url);
   const serviceId = url.searchParams.get("serviceId") ?? "";
   const date = url.searchParams.get("date") ?? "";
@@ -89,6 +91,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Entre na sua conta para solicitar um agendamento." }, { status: 401 });
   let payload: BookingPayload;
   try { payload = await request.json() as BookingPayload; }
   catch { return NextResponse.json({ error: "Corpo da solicitação inválido." }, { status: 400 }); }
@@ -96,11 +100,7 @@ export async function POST(request: Request) {
   const serviceId = typeof payload.serviceId === "string" ? payload.serviceId : "";
   const professionalId = typeof payload.professionalId === "string" ? payload.professionalId : "";
   const dateTime = typeof payload.dateTime === "string" ? payload.dateTime : "";
-  const name = typeof payload.name === "string" ? payload.name.trim() : "";
-  const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
-  if (!serviceId || !professionalId || !name || name.length > 100 || !emailPattern.test(email) || email.length > 254) {
-    return NextResponse.json({ error: "Informe nome, e-mail, serviço e profissional válidos." }, { status: 400 });
-  }
+  if (!serviceId || !professionalId) return NextResponse.json({ error: "Selecione um serviço e profissional válidos." }, { status: 400 });
   if (!dateTimePattern.test(dateTime) || !isValidDate(dateTime.slice(0, 10))) {
     return NextResponse.json({ error: "Selecione uma data e horário válidos." }, { status: 400 });
   }
@@ -122,9 +122,7 @@ export async function POST(request: Request) {
 
       const weekday = new Date(`${dateTime.slice(0, 10)}T12:00:00-03:00`).getDay();
       const localTime = formatTime(bookingDate);
-      const hours = await transaction.professionalWorkingHour.findMany({
-        where: { professionalId, weekDay: weekday, active: true },
-      });
+      const hours = await transaction.professionalWorkingHour.findMany({ where: { professionalId, weekDay: weekday, active: true } });
       const startMinutes = toMinutes(localTime);
       const endMinutes = startMinutes + service.durationMinutes;
       const insideHours = hours.some((row) => startMinutes >= toMinutes(row.startTime) && endMinutes <= toMinutes(row.endTime));
@@ -147,12 +145,6 @@ export async function POST(request: Request) {
       });
       if (conflict) return { error: "SLOT_TAKEN" as const };
 
-      const user = await transaction.user.upsert({
-        where: { email },
-        update: { name },
-        create: { name, email },
-        select: { id: true },
-      });
       const created = await transaction.booking.create({
         data: {
           userId: user.id, serviceId, professionalId, date: bookingDate,
@@ -172,13 +164,11 @@ export async function POST(request: Request) {
         SLOT_TAKEN: [409, "Esse horário já foi ocupado. Escolha outro."],
       };
       const errorCode = booking.error;
-      if (!errorCode || !Object.hasOwn(errors, errorCode)) {
-        return NextResponse.json({ error: "Não foi possível validar a disponibilidade do agendamento." }, { status: 500 });
-      }
+      if (!errorCode || !Object.hasOwn(errors, errorCode)) return NextResponse.json({ error: "Não foi possível validar a disponibilidade do agendamento." }, { status: 500 });
       const [status, message] = errors[errorCode];
       return NextResponse.json({ error: message }, { status });
     }
-    return NextResponse.json({ message: "Agendamento solicitado! A barbearia poderá confirmar pelo contato informado.", bookingId: booking.booking.id }, { status: 201 });
+    return NextResponse.json({ message: "Agendamento solicitado! A barbearia poderá confirmar seu horário.", bookingId: booking.booking.id }, { status: 201 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
       return NextResponse.json({ error: "Houve uma disputa por esse horário. Atualize a disponibilidade e tente novamente." }, { status: 409 });
