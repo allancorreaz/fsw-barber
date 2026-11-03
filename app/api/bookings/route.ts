@@ -164,7 +164,7 @@ export async function POST(request: Request) {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
     if ("error" in booking) {
-      const errors: Record<NonNullable<typeof booking.error>, readonly [number, string]> = {
+      const errors: Record<string, readonly [number, string]> = {
         SERVICE_NOT_FOUND: [404, "Serviço não encontrado ou inativo."],
         PROFESSIONAL_NOT_AVAILABLE: [400, "Esse profissional não realiza o serviço selecionado."],
         OUTSIDE_WORKING_HOURS: [400, "O horário escolhido está fora da jornada do profissional."],
