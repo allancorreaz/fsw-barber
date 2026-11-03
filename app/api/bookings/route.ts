@@ -138,8 +138,7 @@ export async function POST(request: Request) {
       if (timeOff) return { error: "TIME_OFF" as const };
 
       const sameDayBookings = await transaction.booking.findMany({
-        where: { professionalId, date: { lt: bookingEnd }, status: { in: [...ACTIVE_BOOKING_STATUSES] } },
-        include: { service: { select: { durationMinutes: true } } },
+        where: { professionalId, date: { gte: new Date(bookingDate.getTime() - 8 * 60 * 60_000), lt: bookingEnd }, status: { in: [...ACTIVE_BOOKING_STATUSES] } },
         select: { id: true, date: true, durationMinutes: true, service: { select: { durationMinutes: true } } },
       });
       const conflict = sameDayBookings.some((existing) => {
