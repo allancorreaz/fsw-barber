@@ -3,7 +3,7 @@ import { NearbyBarbershops } from "@/app/_components/nearby-barbershops";
 import { connection } from "next/server";
 import { ArrowLeft, ArrowRight, MapPin, Scissors, Search } from "lucide-react";
 import { db } from "@/app/_lib/prisma";
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";\nimport { getCurrentUser } from "@/app/_lib/auth";
 
 type BarbershopsPageProps = {
   searchParams: Promise<{ search?: string }>;
@@ -18,7 +18,7 @@ const currency = (value: number) =>
 export default async function BarbershopsPage({ searchParams }: BarbershopsPageProps) {
   await connection();
   const { search = "" } = await searchParams;
-  const term = search.trim();
+  const term = search.trim();\n  const user = await getCurrentUser();
 
   type BarbershopWithServices = Prisma.BarbershopGetPayload<{
     include: { services: { select: { price: true } } };
@@ -109,10 +109,9 @@ export default async function BarbershopsPage({ searchParams }: BarbershopsPageP
                 : null;
 
               return (
-                <Link
+                <article
                   key={barbershop.id}
-                  href={`/barbershops/${barbershop.id}`}
-                  className="surface group overflow-hidden rounded-2xl transition hover:-translate-y-1 hover:border-[#c8f169]/30"
+                  className="surface overflow-hidden rounded-2xl"
                 >
                   <div
                     className="relative flex h-44 items-end bg-[radial-gradient(ellipse_at_75%_20%,rgba(200,241,105,.2),transparent_38%),linear-gradient(135deg,#30352a,#171717_60%,#0c0c0c)] p-5"
@@ -123,7 +122,7 @@ export default async function BarbershopsPage({ searchParams }: BarbershopsPageP
                     </span>
                   </div>
                   <div className="p-5">
-                    <h3 className="text-lg font-bold transition group-hover:text-[#c8f169]">{barbershop.name}</h3>
+                    <h3 className="text-lg font-bold">{barbershop.name}</h3>
                     <p className="mt-2 flex items-start gap-2 text-sm leading-5 text-neutral-400">
                       <MapPin size={15} className="mt-0.5 shrink-0" /> {barbershop.address}
                     </p>
@@ -131,7 +130,7 @@ export default async function BarbershopsPage({ searchParams }: BarbershopsPageP
                       <span className="text-xs text-neutral-500">
                         {lowestPrice === null ? "Consulte os serviços" : `A partir de ${currency(lowestPrice)}`}
                       </span>
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-[#c8f169]">Ver detalhes <ArrowRight size={14} /></span>
+                      {user ? <Link href={`/barbershops/${barbershop.id}`} className="inline-flex items-center gap-1 text-xs font-bold text-[#c8f169]">Ver detalhes <ArrowRight size={14} /></Link> : <Link href={`/login?next=${encodeURIComponent(`/barbershops/${barbershop.id}`)}`} className="inline-flex items-center gap-1 text-xs font-bold text-[#c8f169]">Entre para ver detalhes <ArrowRight size={14} /></Link>}
                     </div>
                   </div>
                 </Link>
