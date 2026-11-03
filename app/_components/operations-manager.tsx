@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 
 type Service = { id: string; name: string; description: string; price: string | number; durationMinutes: number; active: boolean };
@@ -91,7 +92,7 @@ export function OperationsManager({ barbershopId, mode }: { barbershopId: string
     <section className="surface rounded-2xl p-6">
       <h2 className="text-lg font-bold">{mode === "services" ? "Catálogo de serviços" : "Equipe"}</h2>
       {mode === "services" ? <div className="mt-5 divide-y divide-white/10">{services.map((service) => <article key={service.id} className="flex items-center justify-between gap-4 py-4"><div><p className="font-semibold">{service.name}</p><p className="mt-1 text-xs text-neutral-400">{service.durationMinutes} min · R$ {Number(service.price).toFixed(2).replace(".", ",")} · {service.active ? "Ativo" : "Inativo"}</p></div>{service.active && <button onClick={() => deactivate(service.id)} className="text-xs text-amber-200">Desativar</button>}</article>)}{services.length === 0 && <p className="py-5 text-sm text-neutral-500">Nenhum serviço cadastrado.</p>}</div>
-      : <div className="mt-5 divide-y divide-white/10">{professionals.map((professional) => <article key={professional.id} className="py-4"><p className="font-semibold">{professional.name}</p><p className="mt-1 text-xs text-neutral-400">{professional.email || "Sem e-mail"} · {professional.phone || "Sem telefone"}</p><p className="mt-2 text-xs text-neutral-500">{professional.services.map((item) => services.find((service) => service.id === item.serviceId)?.name).filter(Boolean).join(", ") || "Sem serviços vinculados"}</p></article>)}{professionals.length === 0 && <p className="py-5 text-sm text-neutral-500">Nenhum profissional cadastrado.</p>}</div>}
+      : <div className="mt-5 divide-y divide-white/10">{professionals.map((professional) => <article key={professional.id} className="py-4"><p className="font-semibold">{professional.name}</p><p className="mt-1 text-xs text-neutral-400">{professional.email || "Sem e-mail"} · {professional.phone || "Sem telefone"}</p><p className="mt-2 text-xs text-neutral-500">{professional.services.map((item) => services.find((service) => service.id === item.serviceId)?.name).filter(Boolean).join(", ") || "Sem serviços vinculados"}</p><Link href={`/dashboard/${barbershopId}/professionals/${professional.id}/schedule`} className="mt-3 inline-block text-xs font-semibold text-[#c8f169]">Configurar jornada e folgas →</Link></article>)}{professionals.length === 0 && <p className="py-5 text-sm text-neutral-500">Nenhum profissional cadastrado.</p>}</div>}
     </section>
   </div>;
 }
