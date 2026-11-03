@@ -59,13 +59,14 @@ export function ProfessionalScheduleManager({ barbershopId, professionalId }: { 
 
   async function addTimeOff(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError(""); setMessage("");
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     try {
       const response = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ startsAt: form.get("startsAt"), endsAt: form.get("endsAt"), reason: form.get("reason") }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Não foi possível registrar a folga.");
       setTimeOff((current) => [...current, { id: data.timeOff.id, startsAt: String(form.get("startsAt")), endsAt: String(form.get("endsAt")), reason: String(form.get("reason") || "") }]);
-      event.currentTarget.reset();
+      formElement.reset();
       setMessage("Folga registrada.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Erro ao registrar folga."); }
   }
