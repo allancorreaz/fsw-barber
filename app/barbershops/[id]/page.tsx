@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { ArrowLeft, Clock3, MapPin, Phone, Scissors } from "lucide-react";
 import { db } from "@/app/_lib/prisma";
-import { BookingForm } from "@/app/_components/booking-form";
+import { BookingForm } from "@/app/_components/booking-form";\nimport { getCurrentUser } from "@/app/_lib/auth";
 
 type BarbershopDetailsPageProps = {
   params: Promise<{ id: string }>;
@@ -17,7 +17,7 @@ const currency = (value: number) =>
 
 export default async function BarbershopDetailsPage({ params }: BarbershopDetailsPageProps) {
   await connection();
-  const { id } = await params;
+  const { id } = await params;\n  const user = await getCurrentUser();\n  if (!user) redirect(`/login?next=${encodeURIComponent(`/barbershops/${id}`)}`);
 
   const barbershop = await db.barbershop.findUnique({
     where: { id },
@@ -123,7 +123,7 @@ export default async function BarbershopDetailsPage({ params }: BarbershopDetail
               <p className="text-xs font-bold tracking-[0.18em] text-[#c8f169] uppercase">Reserve seu horário</p>
               <h2 className="mt-2 text-xl font-black">Agende seu atendimento</h2>
               <p className="mb-5 mt-2 text-sm leading-6 text-neutral-400">
-                Escolha o serviço, informe seus dados e selecione uma data e horário.
+                Escolha o serviço, o barbeiro e uma data para visualizar somente os horários livres.
               </p>
               <BookingForm
                 services={barbershop.services.map((service) => ({
