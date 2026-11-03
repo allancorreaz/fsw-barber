@@ -26,7 +26,6 @@ export function ProfessionalScheduleManager({ barbershopId, professionalId }: { 
         if (cancelled) return;
         const next = emptyHours();
         for (const item of data.workingHours as Hour[]) {
-          const existing = next.filter((row) => row.weekDay === item.weekDay);
           const index = next.findIndex((row) => row.weekDay === item.weekDay && !row.active);
           if (index >= 0) next[index] = item;
           else next.push(item);
