@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { ArrowLeft, Clock3, MapPin, Phone, Scissors } from "lucide-react";
 import { db } from "@/app/_lib/prisma";
-import { BookingForm } from "@/app/_components/booking-form";\nimport { getCurrentUser } from "@/app/_lib/auth";
+import { BookingForm } from "@/app/_components/booking-form";
+import { getCurrentUser } from "@/app/_lib/auth";
 
 type BarbershopDetailsPageProps = {
   params: Promise<{ id: string }>;
@@ -17,7 +18,9 @@ const currency = (value: number) =>
 
 export default async function BarbershopDetailsPage({ params }: BarbershopDetailsPageProps) {
   await connection();
-  const { id } = await params;\n  const user = await getCurrentUser();\n  if (!user) redirect(`/login?next=${encodeURIComponent(`/barbershops/${id}`)}`);
+  const { id } = await params;
+  const user = await getCurrentUser();
+  if (!user) redirect(`/login?next=${encodeURIComponent(`/barbershops/${id}`)}`);
 
   const barbershop = await db.barbershop.findUnique({
     where: { id },
