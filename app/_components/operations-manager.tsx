@@ -21,7 +21,23 @@ export function OperationsManager({ barbershopId, mode }: { barbershopId: string
     else setProfessionals(data.professionals);
   }
 
-  useEffect(() => { refresh().catch((reason: Error) => setError(reason.message)); }, [barbershopId, mode]);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const response = await fetch(`/api/barbershops/${encodeURIComponent(barbershopId)}/${mode}`, { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Não foi possível carregar os dados.");
+        if (cancelled) return;
+        if (mode === "services") setServices(data.services);
+        else setProfessionals(data.professionals);
+      } catch (reason) {
+        if (!cancelled) setError(reason instanceof Error ? reason.message : "Erro ao carregar os dados.");
+      }
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, [barbershopId, mode]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
