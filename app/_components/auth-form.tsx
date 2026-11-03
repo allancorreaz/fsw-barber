@@ -1,7 +1,8 @@
 "use client";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-export function AuthForm({ mode }: { mode: "login" | "register" }) {
+
+export function AuthForm({ mode, redirectTo = "/account" }: { mode: "login" | "register"; redirectTo?: string }) {
  const router = useRouter();
  const [error, setError] = useState("");
  const [loading, setLoading] = useState(false);
@@ -13,7 +14,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
    const response = await fetch("/api/auth/" + mode, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
    const result = await response.json();
    if (!response.ok) { setError(result.error || "Não foi possível continuar."); return; }
-   router.replace("/account"); router.refresh();
+   const destination = redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : "/account";
+   router.replace(destination); router.refresh();
   } catch { setError("Falha de conexão. Tente novamente."); }
   finally { setLoading(false); }
  }
