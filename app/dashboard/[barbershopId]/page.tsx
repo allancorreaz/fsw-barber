@@ -13,7 +13,7 @@ export default async function BarbershopDashboardPage({ params }: DashboardPageP
   const { barbershopId } = await params;
   const { user, membership } = await requireBarbershopRole(
     barbershopId,
-    ["OWNER", "MANAGER", "RECEPTIONIST", "BARBER"],
+    ["OWNER", "MANAGER", "RECEPTIONIST"],
   );
 
   if (!user) redirect("/login?next=/dashboard/" + encodeURIComponent(barbershopId));
