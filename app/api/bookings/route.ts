@@ -120,7 +120,7 @@ export async function POST(request: Request) {
       });
       if (!professional) return { error: "PROFESSIONAL_NOT_AVAILABLE" as const };
 
-      const weekday = bookingDate.getDay();
+      const weekday = new Date(`${dateTime.slice(0, 10)}T12:00:00-03:00`).getDay();
       const localTime = formatTime(bookingDate);
       const hours = await transaction.professionalWorkingHour.findMany({
         where: { professionalId, weekDay: weekday, active: true },
