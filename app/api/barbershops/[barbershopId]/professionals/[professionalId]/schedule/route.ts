@@ -56,8 +56,8 @@ export async function POST(request: Request, context: Context) {
   if (!membership) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 404 });
   let body: Record<string, unknown>;
   try { body = await request.json() as Record<string, unknown>; } catch { return NextResponse.json({ error: "JSON inválido." }, { status: 400 }); }
-  const startsAt = typeof body.startsAt === "string" ? new Date(body.startsAt) : new Date(NaN);
-  const endsAt = typeof body.endsAt === "string" ? new Date(body.endsAt) : new Date(NaN);
+  const startsAt = typeof body.startsAt === "string" && /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$/.test(body.startsAt) ? new Date(`${body.startsAt}:00-03:00`) : new Date(NaN);
+  const endsAt = typeof body.endsAt === "string" && /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$/.test(body.endsAt) ? new Date(`${body.endsAt}:00-03:00`) : new Date(NaN);
   const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 200) : null;
   if (!Number.isFinite(startsAt.getTime()) || !Number.isFinite(endsAt.getTime()) || startsAt >= endsAt || startsAt < new Date()) return NextResponse.json({ error: "Informe um período futuro válido para a folga." }, { status: 400 });
   const professional = await db.professional.findFirst({ where: { id: professionalId, barbershopId }, select: { id: true } });
