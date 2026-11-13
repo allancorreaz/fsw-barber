@@ -1,7 +1,11 @@
 import { db } from "@/app/_lib/prisma";
+import { NEARBY_RADIUS_KM } from "@/app/_lib/config";
+import { publiclyAvailableBarbershopIds } from "@/app/_lib/billing";
 
+// Fonte única da verdade: o raio vem de config.ts e os metros são derivados dele.
+export const maxDuration = 60;
 
-const RADIUS_METERS = 20_000;
+const RADIUS_METERS = NEARBY_RADIUS_KM * 1000;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 100;
 
@@ -24,7 +28,10 @@ type RegisteredBarbershop = {
   name: string;
   address: string;
   phones: string[];
+  latitude: number | null;
+  longitude: number | null;
   services: Array<{ name: string; price: { toString(): string } }>;
+  rating: { average: number; count: number } | null;
 };
 
 const cache = new Map<string, CacheEntry>();
@@ -73,8 +80,12 @@ function safeWebsite(value?: string) {
   if (!value) return null;
 
   try {
-    const url = new URL(value.match(/^https?:\/\//i) ? value : `https://${value}`);
-    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+    const url = new URL(
+      value.match(/^https?:\/\//i) ? value : `https://${value}`,
+    );
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? url.toString()
+      : null;
   } catch {
     return null;
   }
@@ -129,9 +140,13 @@ function matchesRegisteredBarbershop(
 
   if (matches.length !== 1) return null;
 
-  const match = matches[0];
+  return platformInfo(matches[0]);
+}
+
+function platformInfo(match: RegisteredBarbershop) {
   return {
     id: match.id,
+    rating: match.rating,
     services: match.services.map((service) => ({
       name: service.name,
       price: Number(service.price.toString()),
@@ -147,7 +162,7 @@ async function loadOsmElements(latitude: number, longitude: number) {
     return cached.elements;
   }
 
-  const query = `[out:json][timeout:25];
+  const query = `[out:json][timeout:20];
 (
   nwr["shop"="barber"](around:${RADIUS_METERS},${latitude},${longitude});
   nwr["shop"="hairdresser"]["male"="yes"](around:${RADIUS_METERS},${latitude},${longitude});
@@ -156,8 +171,11 @@ async function loadOsmElements(latitude: number, longitude: number) {
 );
 out center tags;`;
 
+  // Servidores públicos do Overpass. Se um falhar ou recusar, tenta o próximo.
   const endpoints = [
     "https://overpass-api.de/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
   ];
   let lastError: Error | null = null;
@@ -168,17 +186,23 @@ out center tags;`;
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-          "User-Agent": "FSWBarber/0.1 (nearby barbershop discovery)",
+          Accept: "application/json",
+          "User-Agent":
+            "FSWBarber/1.0 (+https://github.com/allancorreaz/fsw-barber)",
         },
         body: new URLSearchParams({ data: query }),
-        signal: AbortSignal.timeout(25_000),
+        signal: AbortSignal.timeout(12_000),
         cache: "no-store",
       });
 
       if (!response.ok) {
-        lastError = new Error(`Overpass respondeu com HTTP ${response.status}.`);
-        if (response.status === 429 || response.status >= 500) continue;
-        break;
+        lastError = new Error(`${endpoint} respondeu HTTP ${response.status}.`);
+        console.error(
+          "[nearby] Overpass falhou:",
+          lastError.message,
+          (await response.text().catch(() => "")).slice(0, 200),
+        );
+        continue;
       }
 
       const payload = (await response.json()) as { elements?: OsmElement[] };
@@ -201,10 +225,19 @@ out center tags;`;
         error instanceof Error
           ? error
           : new Error("Falha ao consultar a base colaborativa de mapas.");
+      console.error(
+        "[nearby] Overpass erro:",
+        endpoint,
+        lastError.name,
+        lastError.message,
+      );
     }
   }
 
-  throw lastError ?? new Error("O serviço de mapas está temporariamente indisponível.");
+  throw (
+    lastError ??
+    new Error("O serviço de mapas está temporariamente indisponível.")
+  );
 }
 
 export async function GET(request: Request) {
@@ -227,69 +260,145 @@ export async function GET(request: Request) {
   }
 
   try {
-    const elements = await loadOsmElements(latitude, longitude);
+    // Se o mapa colaborativo falhar, ainda mostramos as barbearias cadastradas na plataforma.
+    let elements: OsmElement[] = [];
+    let mapUnavailable = false;
+    try {
+      elements = await loadOsmElements(latitude, longitude);
+    } catch (error) {
+      console.error(
+        "[nearby] mapa indisponível:",
+        error instanceof Error ? error.message : error,
+      );
+      mapUnavailable = true;
+    }
     let registered: RegisteredBarbershop[] = [];
 
     try {
-      registered = await db.barbershop.findMany({
+      const rows = await db.barbershop.findMany({
         select: {
           id: true,
           name: true,
           address: true,
           phones: true,
+          latitude: true,
+          longitude: true,
           services: {
-            select: {
-              name: true,
-              price: true,
-            },
+            where: { active: true },
+            select: { name: true, price: true },
           },
         },
       });
+      const isAvailable = await publiclyAvailableBarbershopIds(
+        rows.map((row) => row.id),
+      );
+      const ratings = await db.review.groupBy({
+        by: ["barbershopId"],
+        _avg: { rating: true },
+        _count: { _all: true },
+      });
+      const ratingByShop = new Map(
+        ratings.map((row) => [
+          row.barbershopId,
+          {
+            average: Math.round((row._avg.rating ?? 0) * 10) / 10,
+            count: row._count._all,
+          },
+        ]),
+      );
+      registered = rows
+        .filter((row) => isAvailable(row.id))
+        .map((row) => ({ ...row, rating: ratingByShop.get(row.id) ?? null }));
     } catch {
       // A descoberta pública continua funcionando mesmo se o catálogo interno estiver indisponível.
     }
 
-    const barbershops = elements
-      .flatMap((element) => {
-        const tags = element.tags ?? {};
-        const coordinates = getCoordinates(element);
-        const name = tags.name?.trim();
+    const barbershops = elements.flatMap((element) => {
+      const tags = element.tags ?? {};
+      const coordinates = getCoordinates(element);
+      const name = tags.name?.trim();
 
-        if (!coordinates || !name) return [];
+      if (!coordinates || !name) return [];
 
-        const distanceKm = distanceInKm(
-          latitude,
-          longitude,
-          coordinates.latitude,
-          coordinates.longitude,
-        );
+      const distanceKm = distanceInKm(
+        latitude,
+        longitude,
+        coordinates.latitude,
+        coordinates.longitude,
+      );
 
-        if (distanceKm > 20) return [];
+      if (distanceKm > NEARBY_RADIUS_KM) return [];
 
-        const address = buildAddress(tags);
-        const platform = matchesRegisteredBarbershop(element, address, registered);
-        const phone =
-          tags.phone ?? tags["contact:phone"] ?? tags.mobile ?? null;
-        const website = safeWebsite(tags.website ?? tags["contact:website"]);
+      const address = buildAddress(tags);
+      const platform = matchesRegisteredBarbershop(
+        element,
+        address,
+        registered,
+      );
+      const phone = tags.phone ?? tags["contact:phone"] ?? tags.mobile ?? null;
+      const website = safeWebsite(tags.website ?? tags["contact:website"]);
 
-        return [
-          {
-            id: `${element.type}-${element.id}`,
-            name,
-            latitude: coordinates.latitude,
-            longitude: coordinates.longitude,
-            distanceKm: Math.round(distanceKm * 10) / 10,
-            address,
-            phone,
-            website,
-            openingHours: tags.opening_hours ?? null,
-            osmUrl: `https://www.openstreetmap.org/${element.type}/${element.id}`,
-            mapsUrl: `https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}`,
-            platform,
-          },
-        ];
-      })
-      .sort((a, b) => a.distanceKm - b.distanceKm);
+      return [
+        {
+          id: `${element.type}-${element.id}`,
+          name,
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+          distanceKm: Math.round(distanceKm * 10) / 10,
+          address,
+          phone,
+          website,
+          openingHours: (tags.opening_hours ?? null) as string | null,
+          osmUrl:
+            `https://www.openstreetmap.org/${element.type}/${element.id}` as
+              string | null,
+          mapsUrl: `https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}`,
+          platform,
+        },
+      ];
+    });
+
+    // Barbearias cadastradas com localização que não apareceram (ou não existem) no OpenStreetMap.
+    const matchedIds = new Set(
+      barbershops.map((item) => item.platform?.id).filter(Boolean),
+    );
+    for (const shop of registered) {
+      if (
+        matchedIds.has(shop.id) ||
+        shop.latitude == null ||
+        shop.longitude == null
+      )
+        continue;
+      const distanceKm = distanceInKm(
+        latitude,
+        longitude,
+        shop.latitude,
+        shop.longitude,
+      );
+      if (distanceKm > NEARBY_RADIUS_KM) continue;
+      barbershops.push({
+        id: `platform-${shop.id}`,
+        name: shop.name,
+        latitude: shop.latitude,
+        longitude: shop.longitude,
+        distanceKm: Math.round(distanceKm * 10) / 10,
+        address: shop.address,
+        phone: shop.phones[0] ?? null,
+        website: null,
+        openingHours: null,
+        osmUrl: null,
+        mapsUrl: `https://www.google.com/maps/search/?api=1&query=${shop.latitude},${shop.longitude}`,
+        platform: platformInfo(shop),
+      });
+    }
+    barbershops.sort((a, b) => {
+      if (
+        Boolean(a.platform) !== Boolean(b.platform) &&
+        Math.abs(a.distanceKm - b.distanceKm) < 1
+      )
+        return a.platform ? -1 : 1;
+      return a.distanceKm - b.distanceKm;
+    });
 
     const uniqueBarbershops = barbershops.filter((barbershop, index, all) => {
       const currentName = normalize(barbershop.name);
@@ -297,7 +406,8 @@ export async function GET(request: Request) {
       return !all.slice(0, index).some((previous) => {
         if (normalize(previous.name) !== currentName) return false;
         const previousAddress = normalize(previous.address ?? "");
-        if (currentAddress && previousAddress) return currentAddress === previousAddress;
+        if (currentAddress && previousAddress)
+          return currentAddress === previousAddress;
         return (
           Math.abs(previous.latitude - barbershop.latitude) < 0.0002 &&
           Math.abs(previous.longitude - barbershop.longitude) < 0.0002
@@ -309,8 +419,9 @@ export async function GET(request: Request) {
       {
         barbershops: uniqueBarbershops,
         count: uniqueBarbershops.length,
-        radiusKm: 20,
+        radiusKm: NEARBY_RADIUS_KM,
         source: "OpenStreetMap",
+        mapUnavailable,
       },
       {
         headers: {

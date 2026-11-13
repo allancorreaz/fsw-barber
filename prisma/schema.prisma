@@ -68,6 +68,7 @@ model User {
   sessions      Session[]
   consumerSubscriptions ConsumerSubscription[]
   payments BillingPayment[]
+  reviews  Review[]
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 }
@@ -125,10 +126,47 @@ model Barbershop {
   googlePlaceId String?
   googleReviewCount Int?
   timezone String @default("America/Sao_Paulo")
+  latitude  Float?
+  longitude Float?
   saasSubscription SaasSubscription?
   consumerPlans ConsumerPlan[]
   consumerSubscriptions ConsumerSubscription[]
   payments BillingPayment[]
+  bookings Booking[]
+  reviews Review[]
+  mercadoPagoAccount MercadoPagoAccount?
+}
+
+// Conta Mercado Pago da barbearia, conectada por OAuth. Os tokens ficam cifrados (AES-256-GCM).
+model MercadoPagoAccount {
+  id              String     @id @default(uuid())
+  barbershopId    String     @unique
+  mpUserId        String
+  accessTokenEnc  String     @db.Text
+  refreshTokenEnc String?    @db.Text
+  publicKey       String?
+  liveMode        Boolean    @default(false)
+  expiresAt       DateTime?
+  barbershop      Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([mpUserId])
+}
+
+model Review {
+  id           String     @id @default(uuid())
+  bookingId    String     @unique
+  userId       String
+  barbershopId String
+  rating       Int
+  comment      String?
+  booking      Booking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@index([barbershopId, createdAt])
 }
 
 model BarbershopMember {
@@ -223,6 +261,12 @@ model BarbershopService {
 
 model Booking {
   id              String            @id @default(uuid())
+  barbershopId    String
+  barbershop      Barbershop        @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  consumerSubscriptionId String?
+  consumerSubscription   ConsumerSubscription? @relation(fields: [consumerSubscriptionId], references: [id], onDelete: SetNull)
+  coveredByPlan   Boolean           @default(false)
+  review          Review?
   userId          String
   user            User              @relation(fields: [userId], references: [id])
   serviceId       String
@@ -240,6 +284,7 @@ model Booking {
   updatedAt       DateTime          @updatedAt
 
   @@index([date, status])
+  @@index([barbershopId, date, status])
   @@index([professionalId, date, status])
   @@index([userId, date])
   @@index([serviceId, date])
@@ -285,6 +330,8 @@ model ConsumerPlan {
   price Decimal @db.Decimal(10,2)
   cycle BillingCycle @default(MONTHLY)
   active Boolean @default(true)
+  // Quantidade de atendimentos incluídos por ciclo. Nulo = ilimitado.
+  bookingsPerCycle Int?
   services ConsumerPlanService[]
   subscriptions ConsumerSubscription[]
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
@@ -307,8 +354,14 @@ model ConsumerSubscription {
   barbershopId String
   planId String
   status SubscriptionStatus @default(PENDING)
+  amount Decimal? @db.Decimal(10,2)
   currentPeriodStart DateTime?
   currentPeriodEnd DateTime?
+  cancelledAt DateTime?
+  // "mercadopago" ou "manual" (pagamento registrado pela barbearia).
+  gateway String?
+  gatewaySubscriptionId String? @unique
+  bookings Booking[]
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
   plan ConsumerPlan @relation(fields: [planId], references: [id])
@@ -324,6 +377,8 @@ model BillingPayment {
   status PaymentStatus @default(PENDING)
   amount Decimal @db.Decimal(10,2)
   currency String @default("BRL")
+  method String?
+  description String?
   gateway String?
   gatewayPaymentId String? @unique
   idempotencyKey String? @unique
