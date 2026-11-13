@@ -3,6 +3,8 @@ import { NEARBY_RADIUS_KM } from "@/app/_lib/config";
 import { publiclyAvailableBarbershopIds } from "@/app/_lib/billing";
 
 // Fonte única da verdade: o raio vem de config.ts e os metros são derivados dele.
+export const maxDuration = 60;
+
 const RADIUS_METERS = NEARBY_RADIUS_KM * 1000;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 100;
@@ -160,7 +162,7 @@ async function loadOsmElements(latitude: number, longitude: number) {
     return cached.elements;
   }
 
-  const query = `[out:json][timeout:25];
+  const query = `[out:json][timeout:20];
 (
   nwr["shop"="barber"](around:${RADIUS_METERS},${latitude},${longitude});
   nwr["shop"="hairdresser"]["male"="yes"](around:${RADIUS_METERS},${latitude},${longitude});
@@ -169,8 +171,11 @@ async function loadOsmElements(latitude: number, longitude: number) {
 );
 out center tags;`;
 
+  // Servidores públicos do Overpass. Se um falhar ou recusar, tenta o próximo.
   const endpoints = [
     "https://overpass-api.de/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
   ];
   let lastError: Error | null = null;
@@ -181,19 +186,23 @@ out center tags;`;
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-          "User-Agent": "FSWBarber/0.1 (nearby barbershop discovery)",
+          Accept: "application/json",
+          "User-Agent":
+            "FSWBarber/1.0 (+https://github.com/allancorreaz/fsw-barber)",
         },
         body: new URLSearchParams({ data: query }),
-        signal: AbortSignal.timeout(25_000),
+        signal: AbortSignal.timeout(12_000),
         cache: "no-store",
       });
 
       if (!response.ok) {
-        lastError = new Error(
-          `Overpass respondeu com HTTP ${response.status}.`,
+        lastError = new Error(`${endpoint} respondeu HTTP ${response.status}.`);
+        console.error(
+          "[nearby] Overpass falhou:",
+          lastError.message,
+          (await response.text().catch(() => "")).slice(0, 200),
         );
-        if (response.status === 429 || response.status >= 500) continue;
-        break;
+        continue;
       }
 
       const payload = (await response.json()) as { elements?: OsmElement[] };
@@ -216,6 +225,12 @@ out center tags;`;
         error instanceof Error
           ? error
           : new Error("Falha ao consultar a base colaborativa de mapas.");
+      console.error(
+        "[nearby] Overpass erro:",
+        endpoint,
+        lastError.name,
+        lastError.message,
+      );
     }
   }
 
@@ -250,7 +265,11 @@ export async function GET(request: Request) {
     let mapUnavailable = false;
     try {
       elements = await loadOsmElements(latitude, longitude);
-    } catch {
+    } catch (error) {
+      console.error(
+        "[nearby] mapa indisponível:",
+        error instanceof Error ? error.message : error,
+      );
       mapUnavailable = true;
     }
     let registered: RegisteredBarbershop[] = [];
