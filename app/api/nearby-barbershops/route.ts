@@ -2,11 +2,10 @@ import { db } from "@/app/_lib/prisma";
 import { NEARBY_RADIUS_KM } from "@/app/_lib/config";
 import { publiclyAvailableBarbershopIds } from "@/app/_lib/billing";
 
-// Fonte única da verdade: o raio vem de config.ts e os metros são derivados dele.
 export const maxDuration = 60;
 
-const RADIUS_METERS = NEARBY_RADIUS_KM * 1000;
-const CACHE_TTL_MS = 5 * 60 * 1000;
+// Barbearias quase não mudam de lugar: cache longo reduz a carga nos servidores gratuitos do mapa.
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 100;
 
 type OsmElement = {
@@ -155,89 +154,108 @@ function platformInfo(match: RegisteredBarbershop) {
 }
 
 async function loadOsmElements(latitude: number, longitude: number) {
-  const cacheKey = `${latitude.toFixed(4)}:${longitude.toFixed(4)}`;
+  // Arredonda para ~1 km: buscas de pontos vizinhos reaproveitam o mesmo resultado.
+  const gridLat = Math.round(latitude * 100) / 100;
+  const gridLon = Math.round(longitude * 100) / 100;
+  const cacheKey = `${gridLat.toFixed(2)}:${gridLon.toFixed(2)}`;
   const cached = cache.get(cacheKey);
 
   if (cached && cached.expiresAt > Date.now()) {
     return cached.elements;
   }
 
-  const query = `[out:json][timeout:20];
-(
-  nwr["shop"="barber"](around:${RADIUS_METERS},${latitude},${longitude});
-  nwr["shop"="hairdresser"]["male"="yes"](around:${RADIUS_METERS},${latitude},${longitude});
-  nwr["shop"="hairdresser"]["name"~"barber|barbearia",i](around:${RADIUS_METERS},${latitude},${longitude});
-  nwr["craft"="hairdresser"]["name"~"barber|barbearia",i](around:${RADIUS_METERS},${latitude},${longitude});
-);
-out center tags;`;
+  // Área quadrada (bbox) que cobre o círculo do raio: o Overpass processa bbox muito mais rápido
+  // que "around". A distância exata é filtrada depois, no nosso servidor.
+  // +1 km de folga compensa o arredondamento da grade.
+  const reachKm = NEARBY_RADIUS_KM + 1;
+  const latDelta = reachKm / 111.32;
+  const lonDelta = reachKm / (111.32 * Math.cos((gridLat * Math.PI) / 180));
+  const bbox = [
+    gridLat - latDelta,
+    gridLon - lonDelta,
+    gridLat + latDelta,
+    gridLon + lonDelta,
+  ]
+    .map((value) => value.toFixed(5))
+    .join(",");
 
-  // Servidores públicos do Overpass. Se um falhar ou recusar, tenta o próximo.
+  const query = `[out:json][timeout:25][bbox:${bbox}];
+(
+  nwr["shop"="barber"];
+  nwr["shop"="hairdresser"]["male"="yes"];
+  nwr["shop"="hairdresser"]["name"~"barb",i];
+  nwr["craft"="hairdresser"]["name"~"barb",i];
+);
+out center tags qt;`;
+
+  // Servidores públicos do Overpass, consultados ao mesmo tempo: vale a primeira resposta válida.
   const endpoints = [
     "https://overpass-api.de/api/interpreter",
     "https://overpass.private.coffee/api/interpreter",
     "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
   ];
-  let lastError: Error | null = null;
+  const controllers = endpoints.map(() => new AbortController());
 
-  for (const endpoint of endpoints) {
-    try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-          Accept: "application/json",
-          "User-Agent":
-            "FSWBarber/1.0 (+https://github.com/allancorreaz/fsw-barber)",
-        },
-        body: new URLSearchParams({ data: query }),
-        signal: AbortSignal.timeout(12_000),
-        cache: "no-store",
-      });
-
-      if (!response.ok) {
-        lastError = new Error(`${endpoint} respondeu HTTP ${response.status}.`);
-        console.error(
-          "[nearby] Overpass falhou:",
-          lastError.message,
-          (await response.text().catch(() => "")).slice(0, 200),
-        );
-        continue;
-      }
-
-      const payload = (await response.json()) as { elements?: OsmElement[] };
-      const elements = Array.isArray(payload.elements) ? payload.elements : [];
-
-      cache.set(cacheKey, {
-        elements,
-        expiresAt: Date.now() + CACHE_TTL_MS,
-      });
-
-      while (cache.size > MAX_CACHE_ENTRIES) {
-        const oldestKey = cache.keys().next().value;
-        if (!oldestKey) break;
-        cache.delete(oldestKey);
-      }
-
-      return elements;
-    } catch (error) {
-      lastError =
-        error instanceof Error
-          ? error
-          : new Error("Falha ao consultar a base colaborativa de mapas.");
-      console.error(
-        "[nearby] Overpass erro:",
-        endpoint,
-        lastError.name,
-        lastError.message,
+  const attempt = async (endpoint: string, index: number) => {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+        Accept: "application/json",
+        "User-Agent":
+          "FSWBarber/1.0 (+https://github.com/allancorreaz/fsw-barber)",
+      },
+      body: new URLSearchParams({ data: query }),
+      signal: AbortSignal.any([
+        controllers[index].signal,
+        AbortSignal.timeout(28_000),
+      ]),
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      const detail = (await response.text().catch(() => ""))
+        .slice(0, 120)
+        .replace(/\s+/g, " ");
+      throw new Error(
+        `${endpoint} respondeu HTTP ${response.status}: ${detail}`,
       );
     }
-  }
+    const payload = (await response.json()) as {
+      elements?: OsmElement[];
+      remark?: string;
+    };
+    if (payload.remark && /runtime error|timed out/i.test(payload.remark)) {
+      throw new Error(
+        `${endpoint} abortou a consulta: ${payload.remark.slice(0, 120)}`,
+      );
+    }
+    return Array.isArray(payload.elements) ? payload.elements : [];
+  };
 
-  throw (
-    lastError ??
-    new Error("O serviço de mapas está temporariamente indisponível.")
-  );
+  try {
+    const elements = await Promise.any(
+      endpoints.map((endpoint, index) => attempt(endpoint, index)),
+    );
+    controllers.forEach((controller) => controller.abort()); // cancela os que ainda estão rodando
+
+    cache.set(cacheKey, { elements, expiresAt: Date.now() + CACHE_TTL_MS });
+    while (cache.size > MAX_CACHE_ENTRIES) {
+      const oldestKey = cache.keys().next().value;
+      if (!oldestKey) break;
+      cache.delete(oldestKey);
+    }
+    return elements;
+  } catch (error) {
+    const reasons = error instanceof AggregateError ? error.errors : [error];
+    for (const reason of reasons) {
+      console.error(
+        "[nearby] Overpass erro:",
+        reason instanceof Error ? `${reason.name}: ${reason.message}` : reason,
+      );
+    }
+    throw new Error("O serviço de mapas está temporariamente indisponível.");
+  }
 }
 
 export async function GET(request: Request) {
