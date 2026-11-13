@@ -4,11 +4,12 @@ Plataforma de descoberta e agendamento de serviços de barbearia, em evolução 
 
 ## Visão do produto
 
-- **Consumidores:** encontram barbearias, consultam serviços e solicitam horários.
-- **Barbearias:** terão ambientes próprios para administrar equipe, catálogo, agenda, clientes e identidade visual.
-- **Plataforma:** administra os estabelecimentos clientes, os planos SaaS e a cobrança da assinatura da barbearia.
+- **Clientes:** veem todas as barbearias num raio de 10 km. As cadastradas mostram detalhes, avaliações e planos; as demais aparecem com aviso de que não têm cadastro. Só quem assina um plano da barbearia consegue ver os barbeiros e horários livres e agendar.
+- **Barbearias:** painel com agenda, planos de assinatura, assinantes, equipe com papéis, financeiro (só dono e gerente) e recebimento pelo Mercado Pago direto na conta da barbearia.
+- **Barbeiros:** acesso próprio para controlar a jornada, as folgas e os próprios atendimentos.
+- **Plataforma:** cobra a mensalidade das barbearias (cartão recorrente ou Pix) e suspende automaticamente quem não paga.
 
-A mensalidade SaaS da barbearia é diferente de um plano comercial que a própria barbearia possa oferecer aos seus consumidores. Os fluxos financeiros devem permanecer separados.
+A mensalidade SaaS da barbearia é diferente do plano que a barbearia vende aos clientes. Os fluxos financeiros são separados.
 
 ## Stack
 
@@ -17,14 +18,15 @@ A mensalidade SaaS da barbearia é diferente de um plano comercial que a própri
 - Tailwind CSS 4
 - Prisma ORM 5
 - PostgreSQL (Neon)
-- Vercel para hospedagem da aplicação
+- Mercado Pago (OAuth, assinaturas e Checkout Pro), atrás de uma interface que permite trocar de provedor
+- Vercel para hospedagem e rotina diária (Cron)
 
 ## Desenvolvimento
 
 Requisitos: Node.js 22 ou superior e acesso a um PostgreSQL compatível.
 
 1. Instale as dependências com `npm ci`.
-2. Configure `DATABASE_URL` (conexão pooled) e `DIRECT_URL` (conexão direta) conforme `.env.example`.
+2. Copie `.env.example` para `.env` e preencha as variáveis.
 3. Gere o Prisma Client com `npx prisma generate`.
 4. Inicie o ambiente com `npm run dev`.
 
@@ -38,8 +40,10 @@ Não execute `prisma/seed.ts` contra o banco de produção. O seed contém dados
 
 ## Estado atual
 
-O fluxo público inicial contempla página institucional, catálogo de barbearias, detalhes dos serviços e solicitação de agendamento. Autenticação, painel de gestão, isolamento multi-tenant completo e cobrança recorrente ainda estão em implementação e não devem ser considerados disponíveis até serem concluídos e validados.
+Implementado e testado ponta a ponta localmente: busca por proximidade, contas e papéis, agenda por barbeiro, planos e assinantes, regra "só assinante agenda", serviços avulsos, avaliações, financeiro, mensalidade da plataforma com suspensão automática e painel `/admin`.
+
+A integração com o Mercado Pago está implementada, mas precisa ser validada com credenciais de teste antes de cobrar clientes reais (ver [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)).
 
 ## Qualidade
 
-A integração contínua executa instalação, geração do Prisma Client, lint e build. A cobertura de testes será ampliada junto com a implementação de autenticação, autorização, regras de agenda e pagamentos.
+A integração contínua executa instalação, geração do Prisma Client, lint e build. `npm run test:billing` cobre a lógica de cobrança.

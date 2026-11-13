@@ -1,21 +1,24 @@
-import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { DashboardShell } from "@/app/_components/dashboard-shell";
 import { OperationsManager } from "@/app/_components/operations-manager";
-import { requireBarbershopRole } from "@/app/_lib/auth";
+import { MANAGEMENT, requireDashboard } from "@/app/_lib/access";
 
 export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ barbershopId: string }> };
 
-export default async function ServicesPage({ params }: Props) {
+export default async function Page({ params }: Props) {
   const { barbershopId } = await params;
-  const { user, membership } = await requireBarbershopRole(barbershopId, ["OWNER", "MANAGER"]);
-  if (!user) redirect("/login");
-  if (!membership) notFound();
-  return <main className="container-shell min-h-screen py-10">
-    <Link href={`/dashboard/${barbershopId}`} className="text-sm text-neutral-400 hover:text-white">← Voltar ao painel</Link>
-    <p className="mt-8 text-xs font-bold uppercase tracking-[0.2em] text-[#c8f169]">Gestão da barbearia</p>
-    <h1 className="mt-2 text-3xl font-black">Serviços</h1>
-    <p className="mt-2 mb-8 text-sm text-neutral-400">Gerencie o catálogo, os preços e a duração usada como base para os agendamentos.</p>
-    <OperationsManager barbershopId={barbershopId} mode="services" />
-  </main>;
+  const ctx = await requireDashboard(barbershopId, MANAGEMENT);
+  return (
+    <DashboardShell
+      barbershop={ctx.barbershop}
+      roles={ctx.roles}
+      userName={ctx.user.name}
+      access={ctx.access}
+      active="services"
+      title="Serviços"
+      description="Gerencie o catálogo, os preços e a duração usada como base para os agendamentos."
+    >
+      <OperationsManager barbershopId={barbershopId} mode="services" />
+    </DashboardShell>
+  );
 }
